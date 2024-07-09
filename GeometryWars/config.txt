@@ -1,0 +1,8 @@
+Window 800 600
+Font RobotRebels.ttf 12 255 255 255
+Circle CGreen 140 100 -1.03 0.02 0 255 0 50
+Circle CBlue 200 120 3.02 1.04 0 0 255 100
+Circle CPurple 100 100 -3.02 -0.01 255 0 255 75
+Rectangle RRed 200 200 1.1 2.15 255 0 0 50 25
+Rectangle RGrey 200 200 -4.02 2.02 100 100 100 50 100
+Rectangle RTeal 25 100 -1.02 -3.02 0 255 255 100 100

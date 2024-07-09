@@ -133,6 +133,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Entity.cpp" />
+    <ClCompile Include="EntityManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Vec2.cpp" />
   </ItemGroup>
@@ -143,6 +145,8 @@
     <Font Include="RobotRebels.ttf" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Entity.h" />
+    <ClInclude Include="EntityManager.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="Vec2.h" />
   </ItemGroup>

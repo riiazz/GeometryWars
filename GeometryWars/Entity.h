@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include "Component.h"
 
 class Entity
 {
@@ -11,7 +12,13 @@ class Entity
 	Entity(const std::string& tag, size_t id);
 public:
 	//component
-	//here
+	std::shared_ptr<CTransform> cTransform;
+	std::shared_ptr<CShape> cShape;
+	std::shared_ptr<CCollision> cCollision;
+	std::shared_ptr<CInput> cInput;
+	std::shared_ptr<CScore> cScore;
+	std::shared_ptr<CLifespan> cLifespan;
+
 	void Destroy();
 	bool IsActive() const;
 	std::string& Tag();

@@ -2,12 +2,37 @@
 #include "Entity.h"
 #include <memory>
 
+void EntityManager::RemoveEntity(const std::string& tag)
+{
+    auto& entities = this->m_entityMap[tag];
+    bool isAlive = false;
+    auto it = std::remove_if(entities.begin(), entities.end(), [isAlive](const std::shared_ptr<Entity>& entity) {
+        return entity->IsActive() == isAlive;
+        });
+    entities.erase(it, entities.end());
+}
+
 EntityManager::EntityManager()
 {
 }
 
 void EntityManager::Update()
 {
+    //Deleting Dead entity;
+    //from vector
+    bool isAlive = false;
+    auto it = std::remove_if(this->m_entities.begin(), this->m_entities.end(), [isAlive](const std::shared_ptr<Entity>& entity) {
+        return entity->IsActive() == isAlive;
+        });
+    if (it != this->m_entities.end())
+        this->m_entities.erase(it, this->m_entities.end());
+
+    //from map
+    for (const auto& pair : this->m_entityMap) {
+        RemoveEntity(pair.first);
+    }
+
+    //Add Entity;
     for (auto& entity : this->m_toAdd) 
     {
         this->m_entities.push_back(entity);

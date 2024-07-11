@@ -14,6 +14,8 @@ class EntityManager
 	EntityMap m_entityMap;
 	EntityVec m_toAdd;
 	size_t m_entityCounter = 0;
+
+	void RemoveEntity(const std::string& tag);
 public:
 	EntityManager();
 	void Update();

@@ -15,11 +15,16 @@ void Game::Init(const std::string& configPath)
 	sSpawnPlayer();
 }
 
+void Game::Update()
+{
+	this->m_entities.Update();
+}
+
 void Game::Run()
 {
 	while (this->m_running) 
 	{
-		this->m_entities.Update();
+		Update();
 		sUserInput();
 		sEnemySpawner();
 		sMovement();
@@ -53,7 +58,7 @@ void Game::sSpawnBullet(float x, float y)
 	bullet->cTransform = std::make_shared<CTransform>(pTransform->pos, velocity, 0);
 	bullet->cShape = std::make_shared<CShape>(10.0f, 30, sf::Color::White, sf::Color::White, 0);
 	bullet->cCollision = std::make_shared<CCollision>(10.0f);
-	bullet->cLifespan = std::make_shared<CLifespan>(100);
+	bullet->cLifespan = std::make_shared<CLifespan>(20);
 
 	auto& shape = bullet->cShape->circle;
 	auto& transform = bullet->cTransform;
@@ -84,6 +89,9 @@ void Game::sMovement()
 			bT->pos.x += bT->velocity.x;
 			bT->pos.y += bT->velocity.y;
 			b->cShape->circle.setPosition(bT->pos.x, bT->pos.y);
+			if (b->cLifespan->remaining <= 0)
+				b->Destroy();
+			b->cLifespan->remaining--;
 		}
 	}
 }
@@ -181,5 +189,16 @@ void Game::sEnemySpawner()
 		enemy->cShape = std::make_shared<CShape>(10.0f, 3, sf::Color::Yellow, sf::Color::Green, 2.0f);
 		enemy->cShape->circle.setPosition(randX, randY);
 		this->m_frameCounter = 0;
+	}
+}
+
+void Game::sCollision()
+{
+	auto& enemies = this->m_entities.GetEntities("enemy");
+	auto& bullets = this->m_entities.GetEntities("bullet");
+	for (auto& b : bullets) {
+		for (auto& e : enemies) {
+			//auto& bCol = b->cCollision->
+		}
 	}
 }

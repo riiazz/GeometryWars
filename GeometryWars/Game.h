@@ -18,7 +18,7 @@ public:
 	void Run();
 	//Systems
 	void sSpawnPlayer();
-	void sSpawnBullet();
+	void sSpawnBullet(float x, float y);
 	void sMovement();
 	void sUserInput();
 	void sRender();

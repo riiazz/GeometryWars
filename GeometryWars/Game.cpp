@@ -1,5 +1,6 @@
 #include "Game.h"
 #include <iostream>
+#include <cmath>
 
 Game::Game(const std::string& configPath)
 {
@@ -17,6 +18,12 @@ void Game::Init(const std::string& configPath)
 
 void Game::Update()
 {
+	auto& enemies = this->m_entities.GetEntities("enemy");
+	for (auto& e : enemies) {
+		if (e->IsActive())
+			continue;
+		sVertices(e->cTransform, e->cShape->circle.getPointCount());
+	}
 	this->m_entities.Update();
 }
 
@@ -26,10 +33,13 @@ void Game::Run()
 	{
 		Update();
 		sUserInput();
-		sEnemySpawner();
-		sMovement();
+		if (!this->m_paused) {
+			sEnemySpawner();
+			sMovement();
+			sCollision();
+			this->m_frameCounter++;
+		}
 		sRender();
-		this->m_frameCounter++;
 	}
 }
 
@@ -83,8 +93,10 @@ void Game::sMovement()
 
 	//bullet
 	auto& bullets = this->m_entities.GetEntities("bullet");
-	if (bullets.size() > 0) {
-		for (auto& b : bullets) {
+	if (bullets.size() > 0) 
+	{
+		for (auto& b : bullets) 
+		{
 			auto& bT = b->cTransform;
 			bT->pos.x += bT->velocity.x;
 			bT->pos.y += bT->velocity.y;
@@ -92,6 +104,24 @@ void Game::sMovement()
 			if (b->cLifespan->remaining <= 0)
 				b->Destroy();
 			b->cLifespan->remaining--;
+		}
+	}
+
+	//enemy
+
+	//vertices
+	auto& vertices = this->m_entities.GetEntities("vertex");
+	if (vertices.size() > 0) 
+	{
+		for (auto& v : vertices)
+		{
+			auto& vT = v->cTransform;
+			vT->pos.x += vT->velocity.x;
+			vT->pos.y += vT->velocity.y;
+			v->cShape->circle.setPosition(vT->pos.x, vT->pos.y);
+			if (v->cLifespan->remaining <= 0)
+				v->Destroy();
+			v->cLifespan->remaining--;
 		}
 	}
 }
@@ -125,7 +155,7 @@ void Game::sUserInput()
 				pInput->right = true;
 				break;
 			case sf::Keyboard::Escape:
-				this->m_window.close();
+				this->m_paused = !this->m_paused;
 				break;
 			default:
 				break;
@@ -156,7 +186,6 @@ void Game::sUserInput()
 			switch (event.mouseButton.button)
 			{
 			case sf::Mouse::Left:
-				std::cout << event.mouseButton.x << "," << event.mouseButton.y << std::endl;
 				sSpawnBullet(event.mouseButton.x, event.mouseButton.y);
 				break;
 			default:
@@ -185,20 +214,81 @@ void Game::sEnemySpawner()
 	if (this->m_frameCounter % 200 == 0) {
 		int randX = std::rand() % 1001 + 100;
 		int randY = std::rand() % 501 + 100;
+		int randVx = 10;
+		int randVy = 20;
+		float radius = 30;
+		Vec2 pos(randX, randY);
+		Vec2 vel(randVx, randVy);
+		
 		auto enemy = this->m_entities.AddEntity("enemy");
-		enemy->cShape = std::make_shared<CShape>(10.0f, 3, sf::Color::Yellow, sf::Color::Green, 2.0f);
-		enemy->cShape->circle.setPosition(randX, randY);
+
+		//Set up components
+		enemy->cTransform = std::make_shared<CTransform>(pos, vel, 0);
+		enemy->cShape = std::make_shared<CShape>(radius, 3, sf::Color::Yellow, sf::Color::Green, 2.0f);
+		enemy->cCollision = std::make_shared<CCollision>(radius);
+
+		enemy->cShape->circle.setPosition(pos.x, pos.y);
 		this->m_frameCounter = 0;
 	}
 }
 
 void Game::sCollision()
 {
+	auto& pT = this->m_player->cTransform;
+	auto pCol = this->m_player->cCollision->radius;
 	auto& enemies = this->m_entities.GetEntities("enemy");
 	auto& bullets = this->m_entities.GetEntities("bullet");
+	for (auto& e : enemies) {
+		auto& eT = e->cTransform;
+		auto eCol = e->cCollision->radius;
+		Vec2 D = pT->pos - eT->pos;
+		float distSqr = (D.x * D.x) + (D.y * D.y);
+		if (distSqr < (pCol + eCol) * (pCol + eCol)) {
+			e->Destroy();
+			this->m_player->Destroy();
+		}
+	}
+
 	for (auto& b : bullets) {
 		for (auto& e : enemies) {
-			//auto& bCol = b->cCollision->
+			auto& bT = b->cTransform;
+			auto bCol = b->cCollision->radius;
+			auto& eT = e->cTransform;
+			auto eCol = e->cCollision->radius;
+			Vec2 D = bT->pos - eT->pos;
+			float distSqr = (D.x * D.x) + (D.y * D.y);
+			if (distSqr < (bCol + eCol) * (bCol + eCol)) {
+				e->Destroy();
+				b->Destroy();
+			}
 		}
+	}
+}
+
+void Game::sVertices(const std::shared_ptr<CTransform>& cT, int sides)
+{
+	int speed = 10;
+	float angle = cT->angle;
+	float baseAngle = 360.0f / sides;
+	Vec2 ePos = cT->pos;
+	const float PI = 3.14159265359;
+	float radius = 5.0f;
+
+	for (int i = 1; i <= sides; i++) {
+		auto ver = this->m_entities.AddEntity("vertex");
+
+		//calculate angle
+		float vAngle = baseAngle*i + angle > 360 ? (baseAngle*i + angle) - 360 : (baseAngle*i + angle);
+		float rad = vAngle * (PI / 180);
+		float x = cos(rad);
+		float y = sin(rad);
+		Vec2 vel(speed * x, speed * y);
+
+		//set up components
+		ver->cTransform = std::make_shared<CTransform>(cT->pos, vel, 0);
+		ver->cLifespan = std::make_shared<CLifespan>(50);
+		ver->cShape = std::make_shared<CShape>(radius, sides, sf::Color::Cyan, sf::Color::Black, 0);
+
+		ver->cShape->circle.setPosition(ePos.x, ePos.y);
 	}
 }

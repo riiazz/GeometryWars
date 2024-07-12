@@ -24,5 +24,6 @@ public:
 	void sRender();
 	void sEnemySpawner();
 	void sCollision();
+	void sVertices(const std::shared_ptr<CTransform>& cT, int sides);
 };
 

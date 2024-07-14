@@ -39,6 +39,7 @@ void Game::Run()
 			sCollision();
 			this->m_frameCounter++;
 		}
+		sRotations();
 		sRender();
 	}
 }
@@ -78,16 +79,19 @@ void Game::sSpawnBullet(float x, float y)
 
 void Game::sMovement()
 {
+	auto winSize = this->m_window.getSize();
+
 	//player
 	auto& pInput = this->m_player->cInput;
 	auto& pTransform = this->m_player->cTransform;
-	if (pInput->up)
+	float pRad = this->m_player->cShape->circle.getRadius();
+	if (pInput->up && pTransform->pos.y - pRad > 0)
 		pTransform->pos.y -= pTransform->velocity.y;
-	if (pInput->down)
+	if (pInput->down && pTransform->pos.y + pRad < winSize.y)
 		pTransform->pos.y += pTransform->velocity.y;
-	if (pInput->left)
+	if (pInput->left && pTransform->pos.x - pRad > 0)
 		pTransform->pos.x -= pTransform->velocity.x;
-	if (pInput->right)
+	if (pInput->right && pTransform->pos.x + pRad < winSize.x)
 		pTransform->pos.x += pTransform->velocity.x;
 	this->m_player->cShape->circle.setPosition(sf::Vector2f(pTransform->pos.x, pTransform->pos.y));
 
@@ -108,6 +112,24 @@ void Game::sMovement()
 	}
 
 	//enemy
+	auto& enemies = this->m_entities.GetEntities("enemy");
+	if (enemies.size() > 0)
+	{
+		for (auto& e : enemies)
+		{
+			auto& eT = e->cTransform;
+			float r = e->cShape->circle.getRadius();
+			if (eT->pos.x - r <= 0 || eT->pos.x + r >= winSize.x)
+				eT->velocity.x *= -1;
+			if (eT->pos.y - r <= 0|| eT->pos.y + r >= winSize.y)
+				eT->velocity.y *= -1;
+
+			eT->pos.x += eT->velocity.x;
+			eT->pos.y += eT->velocity.y;
+
+			e->cShape->circle.setPosition(eT->pos.x, eT->pos.y);			
+		}
+	}
 
 	//vertices
 	auto& vertices = this->m_entities.GetEntities("vertex");
@@ -123,6 +145,17 @@ void Game::sMovement()
 				v->Destroy();
 			v->cLifespan->remaining--;
 		}
+	}
+}
+
+void Game::sRotations()
+{
+	auto& entities = this->m_entities.GetEntities();
+	for (auto& e : entities)
+	{
+		auto& eT = e->cTransform;
+		eT->angle = eT->angle + 2 >= 360 ? (eT->angle + 2) - 360 : eT->angle + 2;
+		e->cShape->circle.setRotation(eT->angle);
 	}
 }
 
@@ -142,11 +175,9 @@ void Game::sUserInput()
 			{
 			case sf::Keyboard::W:
 				pInput->up = true;
-				//std::cout << "keyPressed W" << std::endl;
 				break;
 			case sf::Keyboard::A:
 				pInput->left = true;
-				//std::cout << "keyPressed A" << std::endl;
 				break;
 			case sf::Keyboard::S:
 				pInput->down = true;
@@ -166,11 +197,9 @@ void Game::sUserInput()
 			{
 			case sf::Keyboard::W:
 				pInput->up = false;
-				//std::cout << "keyReleased W" << std::endl;
 				break;
 			case sf::Keyboard::A:
 				pInput->left = false;
-				//std::cout << "keyReleased A" << std::endl;
 				break;
 			case sf::Keyboard::S:
 				pInput->down = false;
@@ -214,8 +243,8 @@ void Game::sEnemySpawner()
 	if (this->m_frameCounter % 200 == 0) {
 		int randX = std::rand() % 1001 + 100;
 		int randY = std::rand() % 501 + 100;
-		int randVx = 10;
-		int randVy = 20;
+		int randVx = 5;
+		int randVy = 3;
 		float radius = 30;
 		Vec2 pos(randX, randY);
 		Vec2 vel(randVx, randVy);
@@ -224,7 +253,7 @@ void Game::sEnemySpawner()
 
 		//Set up components
 		enemy->cTransform = std::make_shared<CTransform>(pos, vel, 0);
-		enemy->cShape = std::make_shared<CShape>(radius, 3, sf::Color::Yellow, sf::Color::Green, 2.0f);
+		enemy->cShape = std::make_shared<CShape>(radius, 5, sf::Color::Yellow, sf::Color::Green, 2.0f);
 		enemy->cCollision = std::make_shared<CCollision>(radius);
 
 		enemy->cShape->circle.setPosition(pos.x, pos.y);

@@ -20,6 +20,7 @@ public:
 	void sSpawnPlayer();
 	void sSpawnBullet(float x, float y);
 	void sMovement();
+	void sRotations();
 	void sUserInput();
 	void sRender();
 	void sEnemySpawner();

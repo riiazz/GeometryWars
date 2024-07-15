@@ -70,6 +70,7 @@ class Game
 public:
 	Game(const std::string& configPath);
 	void Init(const std::string& configPath);
+	void sReadConfig(const std::string& configPath);
 	void Update();
 	void Run();
 	//Systems
@@ -82,6 +83,6 @@ public:
 	void sRender();
 	void sEnemySpawner();
 	void sCollision();
-	void sVertices(const std::shared_ptr<CTransform>& cT, int sides);
+	void sVertices(const std::shared_ptr<Entity>& entity);
 };
 

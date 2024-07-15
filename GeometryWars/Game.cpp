@@ -15,8 +15,26 @@ void Game::Init(const std::string& configPath)
 	std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
 	//read config here
+	sReadConfig(configPath);
+
+	//setup window
+	if (this->m_winCon.fullscreen == 1) {
+		this->m_window.create(sf::VideoMode(this->m_winCon.width, this->m_winCon.height), "Geometry Wars", sf::Style::Fullscreen);
+	}
+	else {
+		this->m_window.create(sf::VideoMode(this->m_winCon.width, this->m_winCon.height), "Geometry Wars");
+	}
+	this->m_window.setFramerateLimit(m_winCon.frameLimit);
+
+	//Spawn Entity
+	sSpawnPlayer();
+	sScore();
+}
+
+void Game::sReadConfig(const std::string& configPath)
+{
 	std::ifstream fileStream(configPath);
-	if(!fileStream.is_open())
+	if (!fileStream.is_open())
 		std::cout << "Failed to open the file!!!" << std::endl;
 	std::string line;
 	while (std::getline(fileStream, line)) {
@@ -65,19 +83,6 @@ void Game::Init(const std::string& configPath)
 		}
 	}
 	fileStream.close();
-
-	//setup window
-	if (this->m_winCon.fullscreen == 1) {
-		this->m_window.create(sf::VideoMode(this->m_winCon.width, this->m_winCon.height), "Geometry Wars", sf::Style::Fullscreen);
-	}
-	else {
-		this->m_window.create(sf::VideoMode(this->m_winCon.width, this->m_winCon.height), "Geometry Wars");
-	}
-	this->m_window.setFramerateLimit(m_winCon.frameLimit);
-
-	//Spawn Entity
-	sSpawnPlayer();
-	sScore();
 }
 
 void Game::Update()
@@ -86,11 +91,11 @@ void Game::Update()
 	for (auto& e : enemies) {
 		if (e->IsActive())
 			continue;
-		sVertices(e->cTransform, e->cShape->circle.getPointCount());
+		sVertices(e);
 	}
 	auto& player = this->m_entities.GetEntities("player");
 	if (!player.empty() && !player[0]->IsActive())
-		sVertices(player[0]->cTransform, player[0]->cShape->circle.getPointCount());
+		sVertices(player[0]);
 
 	std::string text = "Score: " + std::to_string(this->m_scoreVal);
 	this->m_score.setString(text);
@@ -235,9 +240,11 @@ void Game::sMovement()
 			vT->pos.y += vT->velocity.y;
 			v->cShape->circle.setPosition(vT->pos.x, vT->pos.y);
 			auto& color = v->cShape->circle.getFillColor();
+			auto& outColor = v->cShape->circle.getOutlineColor();
 			auto& lifeSpan = v->cLifespan;
 			float opacity = (static_cast<float>(lifeSpan->remaining) / lifeSpan->total);
 			v->cShape->circle.setFillColor(sf::Color(color.r, color.g, color.b, 255 * opacity));
+			v->cShape->circle.setOutlineColor(sf::Color(outColor.r, outColor.g, outColor.b, 255 * opacity));
 			if (v->cLifespan->remaining <= 0)
 				v->Destroy();
 			v->cLifespan->remaining--;
@@ -345,7 +352,7 @@ void Game::sRender()
 
 void Game::sEnemySpawner()
 {
-	if (this->m_frameCounter % 200 == 0) {
+	if (this->m_frameCounter % this->m_enemyCon.spawnInterval == 0) {
 		auto& con = this->m_enemyCon;
 		int randX = std::rand() % 1001 + 100;
 		int randY = std::rand() % 501 + 100;
@@ -413,14 +420,19 @@ void Game::sCollision()
 	}
 }
 
-void Game::sVertices(const std::shared_ptr<CTransform>& cT, int sides)
+void Game::sVertices(const std::shared_ptr<Entity>& entity)
 {
-	int speed = 10;
-	float angle = cT->angle;
+	auto& eT = entity->cTransform;
+	int sides = entity->cShape->circle.getPointCount();
+	int speed = eT->velocity.x;
+	float angle = eT->angle;
 	float baseAngle = 360.0f / sides;
-	Vec2 ePos = cT->pos;
+	Vec2 ePos = eT->pos;
 	const float PI = 3.14159265359;
-	float radius = 5.0f;
+	float radius = entity->cShape->circle.getRadius() / 2;
+	sf::Color fillColor = entity->cShape->circle.getFillColor();
+	sf::Color outlineColor = entity->cShape->circle.getOutlineColor();
+	float thickness = entity->cShape->circle.getOutlineThickness();
 
 	for (int i = 1; i <= sides; i++) {
 		auto ver = this->m_entities.AddEntity("vertex");
@@ -433,9 +445,9 @@ void Game::sVertices(const std::shared_ptr<CTransform>& cT, int sides)
 		Vec2 vel(speed * x, speed * y);
 
 		//set up components
-		ver->cTransform = std::make_shared<CTransform>(cT->pos, vel, 0);
+		ver->cTransform = std::make_shared<CTransform>(eT->pos, vel, 0);
 		ver->cLifespan = std::make_shared<CLifespan>(50);
-		ver->cShape = std::make_shared<CShape>(radius, sides, sf::Color::Cyan, sf::Color::Black, 0);
+		ver->cShape = std::make_shared<CShape>(radius, sides, fillColor, outlineColor, thickness);
 
 		ver->cShape->circle.setPosition(ePos.x, ePos.y);
 	}

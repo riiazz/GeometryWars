@@ -10,6 +10,9 @@ class Game
 	bool m_paused = false;
 	bool m_running = true;
 	int m_frameCounter = 0;
+	sf::Text m_score;
+	sf::Font m_font;
+	int m_scoreVal = 0;
 
 public:
 	Game(const std::string& configPath);
@@ -17,6 +20,7 @@ public:
 	void Update();
 	void Run();
 	//Systems
+	void sScore();
 	void sSpawnPlayer();
 	void sSpawnBullet(float x, float y);
 	void sMovement();

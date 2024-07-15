@@ -1,6 +1,7 @@
 #include "Game.h"
 #include <iostream>
 #include <cmath>
+#include <format>
 
 Game::Game(const std::string& configPath)
 {
@@ -12,8 +13,9 @@ void Game::Init(const std::string& configPath)
 	std::srand(static_cast<unsigned int>(std::time(nullptr)));
 	//read config here
 	this->m_window.create(sf::VideoMode(1280, 720), "Geometry Wars");
-	this->m_window.setFramerateLimit(60);
+	this->m_window.setFramerateLimit(60);	
 	sSpawnPlayer();
+	sScore();
 }
 
 void Game::Update()
@@ -24,6 +26,12 @@ void Game::Update()
 			continue;
 		sVertices(e->cTransform, e->cShape->circle.getPointCount());
 	}
+	auto& player = this->m_entities.GetEntities("player");
+	if (!player.empty() && !player[0]->IsActive())
+		sVertices(player[0]->cTransform, player[0]->cShape->circle.getPointCount());
+
+	std::string text = "Score: " + std::to_string(this->m_scoreVal);
+	this->m_score.setString(text);
 	this->m_entities.Update();
 }
 
@@ -42,6 +50,20 @@ void Game::Run()
 		sRotations();
 		sRender();
 	}
+}
+
+void Game::sScore()
+{
+	auto& font = this->m_font;
+	if (!font.loadFromFile("RobotRebels.ttf"))
+		std::cout << "failed to load font" << std::endl;
+	auto& score = this->m_score;
+	score.setFont(font);
+	std::string text = "Score: " + std::to_string(this->m_scoreVal);
+	score.setString(text);
+	score.setCharacterSize(20);
+	score.setPosition(10, 10);
+	score.setFillColor(sf::Color::Red);
 }
 
 void Game::sSpawnPlayer()
@@ -69,7 +91,7 @@ void Game::sSpawnBullet(float x, float y)
 	bullet->cTransform = std::make_shared<CTransform>(pTransform->pos, velocity, 0);
 	bullet->cShape = std::make_shared<CShape>(10.0f, 30, sf::Color::White, sf::Color::White, 0);
 	bullet->cCollision = std::make_shared<CCollision>(10.0f);
-	bullet->cLifespan = std::make_shared<CLifespan>(20);
+	bullet->cLifespan = std::make_shared<CLifespan>(100);
 
 	auto& shape = bullet->cShape->circle;
 	auto& transform = bullet->cTransform;
@@ -105,6 +127,10 @@ void Game::sMovement()
 			bT->pos.x += bT->velocity.x;
 			bT->pos.y += bT->velocity.y;
 			b->cShape->circle.setPosition(bT->pos.x, bT->pos.y);
+			auto& color = b->cShape->circle.getFillColor();
+			auto& lifeSpan = b->cLifespan;
+			float opacity = (static_cast<float>(lifeSpan->remaining) / lifeSpan->total);
+			b->cShape->circle.setFillColor(sf::Color(color.r, color.g, color.b, 255 * opacity));
 			if (b->cLifespan->remaining <= 0)
 				b->Destroy();
 			b->cLifespan->remaining--;
@@ -141,6 +167,10 @@ void Game::sMovement()
 			vT->pos.x += vT->velocity.x;
 			vT->pos.y += vT->velocity.y;
 			v->cShape->circle.setPosition(vT->pos.x, vT->pos.y);
+			auto& color = v->cShape->circle.getFillColor();
+			auto& lifeSpan = v->cLifespan;
+			float opacity = (static_cast<float>(lifeSpan->remaining) / lifeSpan->total);
+			v->cShape->circle.setFillColor(sf::Color(color.r, color.g, color.b, 255 * opacity));
 			if (v->cLifespan->remaining <= 0)
 				v->Destroy();
 			v->cLifespan->remaining--;
@@ -231,10 +261,13 @@ void Game::sRender()
 {
 	this->m_window.clear();
 	auto& entities = this->m_entities.GetEntities();
+	
 	for (auto& e : entities) 
 	{
 		this->m_window.draw(e->cShape->circle);
 	}
+	
+	this->m_window.draw(this->m_score);
 	this->m_window.display();
 }
 
@@ -255,6 +288,7 @@ void Game::sEnemySpawner()
 		enemy->cTransform = std::make_shared<CTransform>(pos, vel, 0);
 		enemy->cShape = std::make_shared<CShape>(radius, 5, sf::Color::Yellow, sf::Color::Green, 2.0f);
 		enemy->cCollision = std::make_shared<CCollision>(radius);
+		enemy->cScore = std::make_shared<CScore>(100);
 
 		enemy->cShape->circle.setPosition(pos.x, pos.y);
 		this->m_frameCounter = 0;
@@ -289,6 +323,7 @@ void Game::sCollision()
 			if (distSqr < (bCol + eCol) * (bCol + eCol)) {
 				e->Destroy();
 				b->Destroy();
+				this->m_scoreVal += e->cScore->score;
 			}
 		}
 	}

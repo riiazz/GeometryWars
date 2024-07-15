@@ -1,7 +1,8 @@
 #include "Game.h"
 #include <iostream>
 #include <cmath>
-#include <format>
+#include <fstream>
+#include <sstream>
 
 Game::Game(const std::string& configPath)
 {
@@ -10,10 +11,71 @@ Game::Game(const std::string& configPath)
 
 void Game::Init(const std::string& configPath)
 {
+	//seed rand
 	std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
 	//read config here
-	this->m_window.create(sf::VideoMode(1280, 720), "Geometry Wars");
-	this->m_window.setFramerateLimit(60);	
+	std::ifstream fileStream(configPath);
+	if(!fileStream.is_open())
+		std::cout << "Failed to open the file!!!" << std::endl;
+	std::string line;
+	while (std::getline(fileStream, line)) {
+		std::istringstream s(line);
+		std::string type;
+		s >> type;
+		if (type == "Window") {
+			s >> this->m_winCon.width;
+			s >> this->m_winCon.height;
+			s >> this->m_winCon.frameLimit;
+			s >> this->m_winCon.fullscreen;
+		}
+		else if (type == "Font") {
+			s >> this->m_fontCon.path;
+			s >> this->m_fontCon.size;
+			s >> this->m_fontCon.r >> this->m_fontCon.g >> this->m_fontCon.b;
+		}
+		else if (type == "Player") {
+			s >> this->m_playCon.shapeRadius;
+			s >> this->m_playCon.colRadius;
+			s >> this->m_playCon.speed;
+			s >> this->m_playCon.fR >> this->m_playCon.fG >> this->m_playCon.fB;
+			s >> this->m_playCon.oR >> this->m_playCon.oG >> this->m_playCon.oB;
+			s >> this->m_playCon.outlineThickness;
+			s >> this->m_playCon.shapeVertices;
+		}
+		else if (type == "Enemy") {
+			s >> this->m_enemyCon.shapeRadius;
+			s >> this->m_enemyCon.colRadius;
+			s >> this->m_enemyCon.sMin >> this->m_enemyCon.sMax;
+			s >> this->m_enemyCon.oR >> this->m_enemyCon.oG >> this->m_enemyCon.oB;
+			s >> this->m_enemyCon.outlineThickness;
+			s >> this->m_enemyCon.vMin >> this->m_enemyCon.vMax;
+			s >> this->m_enemyCon.smolLifespan;
+			s >> this->m_enemyCon.spawnInterval;
+		}
+		else if (type == "Bullet") {
+			s >> this->m_bulletCon.shapeRadius;
+			s >> this->m_bulletCon.colRadius;
+			s >> this->m_bulletCon.speed;
+			s >> this->m_bulletCon.fR >> this->m_bulletCon.fG >> this->m_bulletCon.fB;
+			s >> this->m_bulletCon.oR >> this->m_bulletCon.oG >> this->m_bulletCon.oB;
+			s >> this->m_bulletCon.outlineThickness;
+			s >> this->m_bulletCon.shapeVertices;
+			s >> this->m_bulletCon.lifespan;
+		}
+	}
+	fileStream.close();
+
+	//setup window
+	if (this->m_winCon.fullscreen == 1) {
+		this->m_window.create(sf::VideoMode(this->m_winCon.width, this->m_winCon.height), "Geometry Wars", sf::Style::Fullscreen);
+	}
+	else {
+		this->m_window.create(sf::VideoMode(this->m_winCon.width, this->m_winCon.height), "Geometry Wars");
+	}
+	this->m_window.setFramerateLimit(m_winCon.frameLimit);
+
+	//Spawn Entity
 	sSpawnPlayer();
 	sScore();
 }
@@ -55,24 +117,29 @@ void Game::Run()
 void Game::sScore()
 {
 	auto& font = this->m_font;
-	if (!font.loadFromFile("RobotRebels.ttf"))
+	if (!font.loadFromFile(this->m_fontCon.path))
 		std::cout << "failed to load font" << std::endl;
 	auto& score = this->m_score;
 	score.setFont(font);
 	std::string text = "Score: " + std::to_string(this->m_scoreVal);
 	score.setString(text);
-	score.setCharacterSize(20);
+	score.setCharacterSize(this->m_fontCon.size);
 	score.setPosition(10, 10);
-	score.setFillColor(sf::Color::Red);
+	sf::Color color(this->m_fontCon.r, this->m_fontCon.g, this->m_fontCon.b);
+	score.setFillColor(color);
 }
 
 void Game::sSpawnPlayer()
 {
+	auto& con = this->m_playCon;
 	this->m_player = this->m_entities.AddEntity("player");
-	this->m_player->cShape = std::make_shared<CShape>(10.0f, 3, sf::Color::Red, sf::Color::Blue, 2.0f);
-	this->m_player->cTransform = std::make_shared<CTransform>(Vec2(this->m_window.getSize().x / 2, this->m_window.getSize().y / 2), Vec2(10, 10), 0);
+	sf::Color fillColor(con.fR, con.fG, con.fB);
+	sf::Color outColor(con.oR, con.oG, con.oB);
+	this->m_player->cShape = std::make_shared<CShape>(con.shapeRadius, con.shapeVertices, fillColor, outColor, con.outlineThickness);
+	Vec2 vel(con.speed, con.speed);
+	this->m_player->cTransform = std::make_shared<CTransform>(Vec2(this->m_window.getSize().x / 2, this->m_window.getSize().y / 2), vel, 0);
 	this->m_player->cInput = std::make_shared<CInput>();
-	this->m_player->cCollision = std::make_shared<CCollision>(10.0f);
+	this->m_player->cCollision = std::make_shared<CCollision>(con.colRadius);
 	Vec2 pos = this->m_player->cTransform->pos;
 	this->m_player->cShape->circle.setPosition(pos.x, pos.y);
 
@@ -198,6 +265,7 @@ void Game::sUserInput()
 		switch (event.type)
 		{
 		case sf::Event::Closed:
+			this->m_running = false;
 			this->m_window.close();
 			break;
 		case sf::Event::KeyPressed:
@@ -217,6 +285,10 @@ void Game::sUserInput()
 				break;
 			case sf::Keyboard::Escape:
 				this->m_paused = !this->m_paused;
+				break;
+			case sf::Keyboard::E:
+				this->m_running = false;
+				this->m_window.close();
 				break;
 			default:
 				break;
@@ -274,21 +346,33 @@ void Game::sRender()
 void Game::sEnemySpawner()
 {
 	if (this->m_frameCounter % 200 == 0) {
+		auto& con = this->m_enemyCon;
 		int randX = std::rand() % 1001 + 100;
 		int randY = std::rand() % 501 + 100;
-		int randVx = 5;
-		int randVy = 3;
-		float radius = 30;
+		int diff = 1 + con.sMax - con.sMin;
+		int randV = std::rand() % diff + con.sMin;
+		float radius = con.shapeRadius;
+		float colRadius = con.colRadius;
 		Vec2 pos(randX, randY);
-		Vec2 vel(randVx, randVy);
+		Vec2 vel(randV, randV);
+		int rR = std::rand() % (1 + 255 - 0) + 0;
+		int rG = std::rand() % (1 + 255 - 0) + 0;
+		int rB = std::rand() % (1 + 255 - 0) + 0;
+		sf::Color fillColor(rR, rG, rB);
+		sf::Color outlineColor(con.oR, con.oG, con.oB);
+		int thickness = con.outlineThickness;
+		int diffVer = 1 + con.vMax - con.vMin;
+		int randVertices = std::rand() % diffVer + con.vMin;
+		int lifeSpan = con.smolLifespan;
 		
 		auto enemy = this->m_entities.AddEntity("enemy");
 
 		//Set up components
 		enemy->cTransform = std::make_shared<CTransform>(pos, vel, 0);
-		enemy->cShape = std::make_shared<CShape>(radius, 5, sf::Color::Yellow, sf::Color::Green, 2.0f);
-		enemy->cCollision = std::make_shared<CCollision>(radius);
+		enemy->cShape = std::make_shared<CShape>(radius, randVertices, fillColor, outlineColor, thickness);
+		enemy->cCollision = std::make_shared<CCollision>(colRadius);
 		enemy->cScore = std::make_shared<CScore>(100);
+		enemy->cLifespan = std::make_shared<CLifespan>(lifeSpan);
 
 		enemy->cShape->circle.setPosition(pos.x, pos.y);
 		this->m_frameCounter = 0;
